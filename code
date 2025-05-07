@@ -1,0 +1,134 @@
+planner = Agent(
+    role="Healthcare Information Specialist",
+    goal="Gather, verify, and summarize accurate medical information in response to user queries, with a focus on symptoms, treatments, and medical guidelines.",
+    backstory=(
+        "You are a healthcare assistant tasked with gathering detailed and accurate medical information. "
+        "Your focus is to respond to specific health-related questions such as symptoms, treatments, prevention, and medical conditions. "
+        "You should always reference trustworthy sources like the CDC, WHO, NIH, Mayo Clinic, and peer-reviewed medical journals. "
+        "Avoid listing healthcare providers unless explicitly asked. Your answers should be comprehensive and actionable."
+    ),
+    constraints=[
+        "Focus responses on symptoms, treatments, and prevention for medical conditions.",
+        "Do not return lists of healthcare providers or clinics unless specifically asked for.",
+        "Cite sources explicitly and include the date of the source information.",
+        "Avoid general or irrelevant information that doesn't answer the user's specific query."
+    ],
+    retrieval_query="Retrieve health-related information only (e.g., symptoms, treatment options, medical guidelines).",
+    allow_delegation=False,
+    llm=groq_llm,
+    verbose=True,
+)
+answer_generator = Agent(
+    role="Answer Generator",
+    goal="Generate a clear and informative answer based on the retrieved health data.",
+    backstory="You are responsible for generating responses to health-related questions, "
+              "using the data retrieved by the Knowledge Agent. "
+              "Your goal is to ensure clarity, conciseness, and relevance in your answers.",
+    allow_delegation=False,
+    llm=groq_llm,
+    verbose=True,
+    instructions="Always generate medically accurate responses in **20 words or fewer**. Be clear, concise, and informative.",
+)
+reviewer = Agent(
+    role="Healthcare Answer Reviewer",
+    goal="Ensure the generated answer is medically accurate, clear, and appropriate.",
+    backstory="You are a medical reviewer who ensures that all health-related answers "
+              "are medically sound, clear, and written according to the organization’s standards.",
+    allow_delegation=False,
+    llm=groq_llm,
+    verbose=True,
+)
+
+config = {"some_key": "value"}
+
+
+print(f"Planner agent type: {type(planner)}")
+
+try:
+    agent = planner
+    print("HealthKnowledgeAgent initialized successfully")
+except Exception as e:
+    print(f"Error initializing HealthKnowledgeAgent: {e}")
+
+
+try:
+    retrieve_info_task = Task(
+        description="Retrieve the relevant health data from a web source to answer the user's query.",
+        expected_output="Health information in response to the query.",
+        agent=agent,
+    )
+    print("Retrieve info task initialized successfully")
+except Exception as e:
+    print(f"Error initializing retrieve_info_task: {e}")
+
+
+try:
+    generate_answer_task = Task(
+        description="Generate a well-crafted answer using the retrieved health data.",
+        expected_output="A clear, concise, and medically accurate answer 20 words to the user's question .",
+        agent=answer_generator,
+    )
+    print("Generate answer task initialized successfully")
+except Exception as e:
+    print(f"Error initializing generate_answer_task: {e}")
+
+try:
+    review_answer_task = Task(
+        description="Review the generated answer for accuracy, clarity, and completeness.",
+        expected_output="A reviewed, approved health response ready to be sent to the user.",
+        agent=reviewer,
+    )
+    print("Review answer task initialized successfully")
+except Exception as e:
+    print(f"Error initializing review_answer_task: {e}")
+crew = Crew(
+    agents=[planner, answer_generator, reviewer],
+    tasks=[retrieve_info_task, generate_answer_task, review_answer_task],
+    verbose=True,
+)
+from crewai import Crew
+
+# Define your Crew
+crew = Crew(
+    agents=[planner, answer_generator, reviewer],
+    tasks=[],
+    verbose=True
+)
+
+# Define your question
+user_query = " What are the healthiest sources of protein?"
+
+# Create tasks dynamically based on the user query
+retrieve_info_task = Task(
+    description=f"Retrieve information related to: {user_query}",
+    expected_output="Detailed and trusted medical information relevant to the user's query.",
+    agent=planner
+)
+
+generate_answer_task = Task(
+    description="Based on the retrieved information, write a clear, concise, user-friendly explanation in 20 words or fewer.",
+    expected_output="A medically accurate and concise answer (20 words or fewer) to the user's question.",
+    agent=answer_generator
+)
+
+review_answer_task = Task(
+    description="Review the answer for medical accuracy, clarity, and ensure it's ready to send to the user.",
+    expected_output="A final, approved response to the user, ensuring clarity, accuracy, and conciseness.",
+    agent=reviewer
+)
+
+
+# Attach tasks to Crew
+crew.tasks = [retrieve_info_task, generate_answer_task, review_answer_task]
+
+# Run the Crew to process the query
+final_answer = crew.kickoff()
+
+
+# Run the Crew to process the query
+final_answer = crew.kickoff()
+
+
+# Show the final reviewed answer
+print("\n✅ Final Answer:")
+print(final_answer)
